@@ -2,6 +2,7 @@ package com.ecommerce.microcommerce.web.controller;
 
 import com.ecommerce.microcommerce.dao.ProductDao;
 import com.ecommerce.microcommerce.model.Product;
+import com.ecommerce.microcommerce.web.exceptions.ProduitGratuitException;
 import com.ecommerce.microcommerce.web.exceptions.ProduitIntrouvableException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
@@ -16,7 +17,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 
 @Api( description="API pour es opérations CRUD sur les produits.")
@@ -29,9 +34,7 @@ public class ProductController {
 
 
     //Récupérer la liste des produits
-
     @RequestMapping(value = "/Produits", method = RequestMethod.GET)
-
     public MappingJacksonValue listeProduits() {
 
         Iterable<Product> produits = productDao.findAll();
@@ -51,7 +54,6 @@ public class ProductController {
     //Récupérer un produit par son Id
     @ApiOperation(value = "Récupère un produit grâce à son ID à condition que celui-ci soit en stock!")
     @GetMapping(value = "/Produits/{id}")
-
     public Product afficherUnProduit(@PathVariable int id) {
 
         Product produit = productDao.findById(id);
@@ -61,18 +63,16 @@ public class ProductController {
         return produit;
     }
 
-
-
-
     //ajouter un produit
     @PostMapping(value = "/Produits")
-
     public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody Product product) {
 
         Product productAdded =  productDao.save(product);
 
         if (productAdded == null)
             return ResponseEntity.noContent().build();
+        else 
+        	if(product.getPrix() == 0) throw new ProduitGratuitException("Le prix de vente ne doit pas être égal à 0 !  ");
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -101,6 +101,30 @@ public class ProductController {
     public List<Product>  testeDeRequetes(@PathVariable int prix) {
 
         return productDao.chercherUnProduitCher(400);
+    }
+        
+    // Calcul de la marge de chaque produit (différence entre prix d‘achat et prix de vente).
+    @GetMapping(value = "/AdminProduits")
+    public Map<Product, Integer> calculerMargeProduit(){
+    	
+    	List<Product> listProduct = productDao.findAll();
+    	Map<Product, Integer> listProductsWithMarge = new HashMap<Product, Integer>();
+    	
+    	for (Product product : listProduct) {  		
+        	int marge = (product.getPrix()-product.getPrixAchat() );
+        	listProductsWithMarge.put(product,marge);
+		} 
+    	return listProductsWithMarge;
+		  		
+	}
+
+    
+    // Retourne la liste de tous les produits triés par nom croissant 
+    @GetMapping(value = "/AdminProduitsTriesParOrdre")
+    public List<Product> trierProduitsParOrdreAlphabetique(){
+    	
+        List<Product> produitsTriesAsc = productDao.findAllByOrderByNomAsc();   
+    	return produitsTriesAsc;
     }
 
 
